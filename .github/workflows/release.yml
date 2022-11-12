@@ -1,0 +1,41 @@
+name: release-action
+run-name: release by @${{ github.actor }}
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+*'
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v3
+        
+      - name: zip
+        run: |
+          mkdir import_lab
+          cp __init__.py lab.py LICENSE README.md import_lab/
+          zip -r import_lab.zip import_lab/
+      
+      - name: Create release
+        id: create_release
+        uses: actions/create-release@v1.0.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release Asset
+        id: upload-release-asset
+        uses: actions/upload-release-asset@v1.0.2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./import_lab.zip
+          asset_name: import_lab.zip
+          asset_content_type: application/zip

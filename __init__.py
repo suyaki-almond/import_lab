@@ -138,6 +138,8 @@ class IMPLAB_OT_INSERT(Operator, ImportHelper):
         action_list = []
         for s in sentence:
             act: bpy.types.Action = bpy.data.actions.new(actionname)
+            if act.name == actionname:  # ファイル先頭の'pau'を'N'にする
+                s.phoneme_list[0].phoneme = 'N'
             for p in s.phoneme_list:
                 if p.phoneme not in src_list.keys():
                     continue

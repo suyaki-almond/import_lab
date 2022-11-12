@@ -157,7 +157,7 @@ class IMPLAB_OT_INSERT(Operator, ImportHelper):
                     for keyframe in src_fcurve.keyframe_points:
                         frame, value = keyframe.co
                         fcurve.keyframe_points.insert(
-                            timingB, value, options={'FAST'})
+                            (timingB+timingE)/2, value, options={'FAST'})
 
             for curve in act.fcurves:
                 curve.update()
@@ -180,7 +180,8 @@ class IMPLAB_OT_INSERT(Operator, ImportHelper):
         current_frame = context.scene.frame_current
 
         for words, action in zip(sentence, action_list):
-            insert_frame = words.phoneme_list[1].timingB * \
+            p = words.phoneme_list[1] if words.phoneme_list[0].phoneme == 'pau' else words.phoneme_list[0]
+            insert_frame = ((p.timingB + p.timingE)/2) * \
                 context.scene.render.fps + current_frame
 
             strip = track.strips.new(action.name, int(insert_frame), action)

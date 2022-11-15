@@ -1,7 +1,7 @@
 
 from . import lab
 from bpy_extras.io_utils import ImportHelper
-from bpy.types import Operator, AddonPreferences, Panel, PropertyGroup
+from bpy.types import Operator, AddonPreferences, Panel, UIList, PropertyGroup, Action, Context
 from bpy.props import *
 import bpy
 from copy import copy
@@ -38,7 +38,7 @@ class IMPLAB_MT_AddonPreferences(AddonPreferences):
 
 class ImplabActionPointer(PropertyGroup):
     pho: StringProperty()
-    pose: PointerProperty(type=bpy.types.Action)
+    pose: PointerProperty(type=Action)
 
 
 class ImplabPropertyGroup(PropertyGroup):
@@ -90,7 +90,7 @@ class IMPLAB_OT_INSERT(Operator, ImportHelper):
 
         return {"FINISHED"}
 
-    def phoneme_check(self, context: 'bpy.types.Context') -> str:
+    def phoneme_check(self, context: Context) -> tuple[str, dict[str, Action]]:
         props = context.active_object.data.implab_props
         vlist = props.vowel_list
         clist = props.consonants_list
@@ -132,12 +132,12 @@ class IMPLAB_OT_INSERT(Operator, ImportHelper):
 
         vlist = {v.pho: v.pose if v.pose else a for v in props.vowel_list}
         clist = {c.pho: c.pose if c.pose else N for c in props.consonants_list}
-        src_list: dict[str, bpy.types.Action] = vlist | clist
+        src_list: dict[str, Action] = vlist | clist
         actionname = bpy.path.display_name_from_filepath(self.filepath)
 
         action_list = []
         for s in sentence:
-            act: bpy.types.Action = bpy.data.actions.new(actionname)
+            act: Action = bpy.data.actions.new(actionname)
             if act.name == actionname:  # ファイル先頭の'pau'を'N'にする
                 s.phoneme_list[0].phoneme = 'N'
             for p in s.phoneme_list:
@@ -165,7 +165,7 @@ class IMPLAB_OT_INSERT(Operator, ImportHelper):
             action_list.append(act)
         return action_list
 
-    def create_track(self, context: 'bpy.types.Context'):
+    def create_track(self, context: Context):
         obj = context.active_object
         # if obj.animation_data.nla_tracks.find("Vowel") == -1:
         #     obj.animation_data.nla_tracks.new().name = "LAB Vowel"
@@ -174,7 +174,7 @@ class IMPLAB_OT_INSERT(Operator, ImportHelper):
         if obj.animation_data.nla_tracks.find("LAB Speech") == -1:
             obj.animation_data.nla_tracks.new().name = "LAB Speech"
 
-    def insert_action_in_track(self, context: 'bpy.types.Context', sentence: list[lab.lab_words], action_list: list['bpy.types.Action']):
+    def insert_action_in_track(self, context: Context, sentence: list[lab.lab_words], action_list: list[Action]):
         obj = context.active_object
         track = obj.animation_data.nla_tracks["LAB Speech"]
         current_frame = context.scene.frame_current
@@ -373,7 +373,7 @@ class IMPLAB_PT_ImplabPanel(Panel):
         layout.operator(IMPLAB_OT_SetPhonemeList.bl_idname)
 
 
-class IMPLAB_UL_PhonemeList(bpy.types.UIList):
+class IMPLAB_UL_PhonemeList(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             if item:
@@ -390,7 +390,7 @@ class IMPLAB_UL_PhonemeList(bpy.types.UIList):
             layout.label(text="", icon_value=icon)
 
 
-class IMPLAB_UL_PhonemeList2(bpy.types.UIList):
+class IMPLAB_UL_PhonemeList2(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             row = layout.split(align=True, factor=0.1)

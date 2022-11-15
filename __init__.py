@@ -81,10 +81,11 @@ class IMPLAB_OT_INSERT(Operator, ImportHelper):
 
         sentence = lab.lab_words(self.filepath).split()
 
-        covering = self.phoneme_check(context)
+        covering, phoneme_dict = self.phoneme_check(context)
         if not covering:
             return {"FINISHED"}
-        actions = self.generate_action(context, covering, sentence)
+        actions = self.generate_action(
+            context, covering, sentence, phoneme_dict)
         self.create_track(context)
         self.insert_action_in_track(context, sentence, actions)
 
@@ -100,35 +101,35 @@ class IMPLAB_OT_INSERT(Operator, ImportHelper):
             obj.animation_data_create()
 
         # 音素スロットが一意か確認
-        unique = [v for i, v in enumerate(props.vowel_list) if v.pho in [
-            l.pho for l in props.vowel_list[i+1:]]]
-        unique += [v for i, v in enumerate(props.consonants_list) if v.pho in [
-            l.pho for l in props.consonants_list[i+1:]]]
-        unique += [v for i, v in enumerate(props.vowel_list) if v.pho in [
-            l.pho for l in props.consonants_list]]
+        slots = [p for p in vlist] + [p for p in clist]
+        unique = [v for i, v in enumerate(slots) if v.pho in [
+            l.pho for l in slots[i+1:]]]
         if unique:
             for u in unique:
                 self.report({'ERROR'}, f"一意ではない音素: {u.pho}")
-            return None
+            return None, None
 
-        if None not in [v.pose for v in props.vowel_list if v.pho in ["a", "N"]]:
+        # 音素辞書作成
+        phoneme_dict = {v.pho: v.pose for v in slots}
+
+        if phoneme_dict['a'] != None and phoneme_dict['N'] != None:
             ret = 'OPEN_SHUT'
         else:
             self.report({'ERROR'}, "最低限のアクションが指定されていません: 'a' , 'N'")
-            return None
-        if len(props.vowel_list) >= 3 and None not in [v.pose for v in props.vowel_list]:
+            return None, None
+        if len(vlist) >= 3 and None not in [v.pose for v in vlist]:
             ret = 'VOWEL'
-        if len(props.consonants_list) > 0 and None not in [v.pose for v in props.consonants_list]:
+        if len(clist) > 0 and None not in [v.pose for v in clist]:
             ret += '_CONSONANTS'
-        return ret
+        return ret, phoneme_dict
 
-    def generate_action(self, context: 'bpy.types.Context', covering: str, sentence: list[lab.lab_words]):
+    def generate_action(self, context: Context, covering: str, sentence: list[lab.lab_words], phoneme_dict: dict[str, Action]):
         props = context.active_object.data.implab_props
         obj = context.active_object
         fps = 100 if self.use_scale else context.scene.render.fps
 
-        a = [v.pose for v in props.vowel_list if v.pho == 'a'][0]
-        N = [v.pose for v in props.vowel_list if v.pho == 'N'][0]
+        a = phoneme_dict['a']
+        N = phoneme_dict['N']
 
         vlist = {v.pho: v.pose if v.pose else a for v in props.vowel_list}
         clist = {c.pho: c.pose if c.pose else N for c in props.consonants_list}

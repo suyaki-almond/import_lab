@@ -139,16 +139,20 @@ class IMPLAB_OT_INSERT(Operator, ImportHelper):
         action_list = []
         for s in sentence:
             act: Action = bpy.data.actions.new(actionname)
-            if act.name == actionname:  # ファイル先頭の'pau'を'N'にする
+            # ファイル先頭の'pau'を'N'にする
+            if act.name == actionname and s.phoneme_list[0].phoneme == 'pau':
                 s.phoneme_list[0].phoneme = 'N'
             for p in s.phoneme_list:
                 if p.phoneme not in src_list.keys():
                     continue
                 phoneme = src_list[p.phoneme]
-                timingB = p.timingB * fps
-                timingE = p.timingE * fps
+                timing = (((p.timingB + p.timingE)/2)*fps,)
 
-                for src_fcurve in phoneme.fcurves:
+                if p.length() > 0.1:  # 発音が長い場合、タイミングを2つ作る
+                    timing = ((p.timingB + 0.05) * fps,
+                              (p.timingE - 0.05) * fps)
+
+                for src_fcurve in phoneme.fcurves:  # 音素のFカーブをアクションに打ち込む
                     index = src_fcurve.array_index
                     fcurve = act.fcurves.find(
                         src_fcurve.data_path, index=index)
@@ -156,9 +160,10 @@ class IMPLAB_OT_INSERT(Operator, ImportHelper):
                         fcurve = act.fcurves.new(
                             src_fcurve.data_path, index=index, action_group=src_fcurve.group.name)
                     for keyframe in src_fcurve.keyframe_points:
-                        frame, value = keyframe.co
-                        fcurve.keyframe_points.insert(
-                            (timingB+timingE)/2, value, options={'FAST'})
+                        for t in timing:  # 発音が長い場合、キーフレームを2つ打つ
+                            frame, value = keyframe.co
+                            fcurve.keyframe_points.insert(
+                                t, value, options={'FAST'})
 
             for curve in act.fcurves:
                 curve.update()
@@ -182,7 +187,7 @@ class IMPLAB_OT_INSERT(Operator, ImportHelper):
 
         for words, action in zip(sentence, action_list):
             p = words.phoneme_list[1] if words.phoneme_list[0].phoneme == 'pau' else words.phoneme_list[0]
-            insert_frame = ((p.timingB + p.timingE)/2) * \
+            insert_frame = (p.timingB+0.05 if p.length() > 0.1 else (p.timingB+p.timingE)/2) * \
                 context.scene.render.fps + current_frame
 
             strip = track.strips.new(action.name, int(insert_frame), action)

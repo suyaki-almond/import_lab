@@ -47,6 +47,9 @@ class phoneme:
     def timingE(self, timing: int):
         self._timingE = datetime.timedelta(microseconds=timing*0.1)
 
+    def length(self) -> float:
+        return self.timingE - self.timingB
+
 
 class lab_words:
     def __init__(self, filepath: str = ''):

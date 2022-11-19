@@ -1,7 +1,7 @@
 
 from . import lab
 from bpy_extras.io_utils import ImportHelper
-from bpy.types import Operator, AddonPreferences, Panel, UIList, PropertyGroup, Action, Context
+from bpy.types import Operator, AddonPreferences, Panel, UIList, PropertyGroup, Action, Context, ShapeKey
 from bpy.props import *
 import bpy
 from copy import copy
@@ -53,6 +53,30 @@ class ImplabPropertyGroup(PropertyGroup):
     consonants_active_index: IntProperty("Active Index")
 
 
+def getShapeKeyList(self, context: Context):
+    obj = context.active_object
+    if obj.type != 'MESH':
+        return []
+    return [(item.name, item.name, "") for item in obj.data.shape_keys.key_blocks]
+
+
+class ImplabShapekeyPointer(PropertyGroup):
+    pho: StringProperty()
+    pose: EnumProperty(items=getShapeKeyList)
+
+
+class ImplabMeshPropertyGroup(PropertyGroup):
+    insert_frame: IntProperty(
+        name="挿入フレーム",
+        description="発音モーションを挿入するフレーム",
+        default=1,
+    )
+    vowel_list: CollectionProperty(type=ImplabShapekeyPointer)
+    consonants_list: CollectionProperty(type=ImplabShapekeyPointer)
+    vowel_active_index: IntProperty("Active Index")
+    consonants_active_index: IntProperty("Active Index")
+
+
 class IMPLAB_OT_INSERT(Operator, ImportHelper):
     '''
     音素アクションをチェック
@@ -68,6 +92,7 @@ class IMPLAB_OT_INSERT(Operator, ImportHelper):
     filename_ext = ".lab"
     filter_glob: StringProperty(
         default="*.lab", options={'HIDDEN'}, maxlen=255)
+    target: StringProperty(default="", options={'HIDDEN'})
     use_scale: BoolProperty(
         name="Use Scale", description="固定フレームレートのアクションを生成し、再生スケールで調整する")
 
@@ -84,21 +109,23 @@ class IMPLAB_OT_INSERT(Operator, ImportHelper):
         covering, phoneme_dict = self.phoneme_check(context)
         if not covering:
             return {"FINISHED"}
-        actions = self.generate_action(
-            context, covering, sentence, phoneme_dict)
-        self.create_track(context)
-        self.insert_action_in_track(context, sentence, actions)
+        match self.target:
+            case 'ARMATURE':
+                actions = self.generate_rig_action(
+                    context, covering, sentence, phoneme_dict)
+            case 'MESH':
+                actions = self.generate_shapekey_action(
+                    context, covering, sentence, phoneme_dict)
+        track = self.create_track(context)
+        self.insert_action_in_track(context, sentence, actions, track)
 
         return {"FINISHED"}
 
-    def phoneme_check(self, context: Context) -> tuple[str, dict[str, Action]]:
+    def phoneme_check(self, context: Context) -> tuple[str, dict]:
         props = context.active_object.data.implab_props
         vlist = props.vowel_list
         clist = props.consonants_list
         obj = context.active_object
-
-        if not obj.animation_data:
-            obj.animation_data_create()
 
         # 音素スロットが一意か確認
         slots = [p for p in vlist] + [p for p in clist]
@@ -123,7 +150,7 @@ class IMPLAB_OT_INSERT(Operator, ImportHelper):
             ret += '_CONSONANTS'
         return ret, phoneme_dict
 
-    def generate_action(self, context: Context, covering: str, sentence: list[lab.lab_words], phoneme_dict: dict[str, Action]):
+    def generate_rig_action(self, context: Context, covering: str, sentence: list[lab.lab_words], phoneme_dict: dict[str, Action]):
         props = context.active_object.data.implab_props
         obj = context.active_object
         fps = 100 if self.use_scale else context.scene.render.fps
@@ -171,18 +198,78 @@ class IMPLAB_OT_INSERT(Operator, ImportHelper):
             action_list.append(act)
         return action_list
 
+    def generate_shapekey_action(self, context: Context, covering: str, sentence: list[lab.lab_words], phoneme_dict: dict[str, str]):
+        props = context.active_object.data.implab_props
+        obj = context.active_object
+        fps = 100 if self.use_scale else context.scene.render.fps
+
+        a = phoneme_dict['a']
+        N = phoneme_dict['N']
+
+        keys = obj.data.shape_keys.key_blocks
+        vlist = {v.pho: keys[v.pose]
+                 if v.pose else a for v in props.vowel_list}
+        clist = {c.pho: keys[c.pose]
+                 if c.pose else N for c in props.consonants_list}
+        src_list: dict[str, ShapeKey] = vlist | clist
+        actionname = bpy.path.display_name_from_filepath(self.filepath)
+
+        action_list = []
+        for s in sentence:
+            act: Action = bpy.data.actions.new(actionname)
+            # ファイル先頭の'pau'を'N'にする
+            if act.name == actionname and s.phoneme_list[0].phoneme == 'pau':
+                s.phoneme_list[0].phoneme = 'N'
+            for p in s.phoneme_list:
+                if p.phoneme not in src_list.keys():
+                    continue
+                phoneme = src_list[p.phoneme]
+
+                # タイミング生成
+                timing = [((p.timingB - 0.05), 0.0)]
+                if p.length() > 0.1:  # 発音が長い場合、タイミングを2つ作る
+                    timing.extend([(p.timingB + 0.05, 1.0),
+                                  (p.timingE - 0.05, 1.0)])
+                else:
+                    timing.append(((p.timingB+p.timingE)/2, 1.0))
+                timing.append((p.timingE+0.05, 0.0))
+
+                # キーフレーム打ち込み
+                shapekeyname = f"key_blocks[\"{phoneme.name}\"].value"
+                if not (fcurve := act.fcurves.find(shapekeyname)):
+                    fcurve = act.fcurves.new(shapekeyname)
+                for t, v in timing:
+                    fcurve.keyframe_points.insert(
+                        t*fps, v, options={'FAST'})
+
+            for curve in act.fcurves:
+                curve.update()
+            act.use_fake_user = True
+            action_list.append(act)
+        return action_list
+
     def create_track(self, context: Context):
         obj = context.active_object
-        # if obj.animation_data.nla_tracks.find("Vowel") == -1:
-        #     obj.animation_data.nla_tracks.new().name = "LAB Vowel"
-        # if obj.animation_data.nla_tracks.find("Consonants") == -1:
-        #     obj.animation_data.nla_tracks.new().name = "LAB Consonants"
-        if obj.animation_data.nla_tracks.find("LAB Speech") == -1:
-            obj.animation_data.nla_tracks.new().name = "LAB Speech"
 
-    def insert_action_in_track(self, context: Context, sentence: list[lab.lab_words], action_list: list[Action]):
+        match obj.type:
+            case 'ARMATURE':
+                target = obj
+            case 'MESH':
+                target = obj.data.shape_keys
+
+        if not target.animation_data:
+            target.animation_data_create()
+        nla_tracks = target.animation_data.nla_tracks
+
+        if (id := nla_tracks.find("LAB Speech")) != -1:
+            return nla_tracks[id]
+        else:
+            track = nla_tracks.new()
+            track.name = "LAB Speech"
+            return track
+
+    def insert_action_in_track(self, context: Context, sentence: list[lab.lab_words], action_list: list[Action], track):
         obj = context.active_object
-        track = obj.animation_data.nla_tracks["LAB Speech"]
         current_frame = context.scene.frame_current
 
         for words, action in zip(sentence, action_list):
@@ -354,7 +441,7 @@ class IMPLAB_OT_MoveConsonants(Operator):
 class IMPLAB_PT_ImplabPanel(Panel):
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
-    bl_label = "Import Lab"
+    bl_label = "Import Lab Pose"
     bl_options = {'DEFAULT_CLOSED'}
     bl_context = "data"
 
@@ -375,8 +462,23 @@ class IMPLAB_PT_ImplabPanel(Panel):
         # row.prop(props, "insert_frame")
         # size = row.operator(
         #     IMPLAB_OT_SET_CURRENT_FRAME.bl_idname, text="", icon="TIME")
-        layout.operator(IMPLAB_OT_INSERT.bl_idname)
+        layout.operator(IMPLAB_OT_INSERT.bl_idname).target = 'ARMATURE'
         layout.operator(IMPLAB_OT_SetPhonemeList.bl_idname)
+
+
+def uilist_draw(layout: 'bpy.types.UILayout', props, listtype_name, propname, active_propname, rows=5):
+    row = layout.row(align=False)
+    row.template_list(listtype_name, "",
+                      props, propname, props, active_propname, rows=rows)
+    col = row.column()
+    col1 = col.column(align=True)
+    col1.operator(IMPLAB_OT_NewVowel.bl_idname, text="", icon="ADD")
+    col1.operator(IMPLAB_OT_DeleteVowel.bl_idname, text="", icon="REMOVE")
+    col2 = col.column(align=True)
+    col2.operator(IMPLAB_OT_MoveVowel.bl_idname,
+                  text="", icon="TRIA_UP").direction = "UP"
+    col2.operator(IMPLAB_OT_MoveVowel.bl_idname, text="",
+                  icon="TRIA_DOWN").direction = "DOWN"
 
 
 class IMPLAB_UL_PhonemeList(UIList):
@@ -420,18 +522,8 @@ class IMPLAB_PT_vowel(Panel):
         props = context.active_object.data.implab_props
         addon_prefs = bpy.context.preferences.addons[__package__].preferences
 
-        row = layout.row(align=False)
-        row.template_list("IMPLAB_UL_PhonemeList", "",
-                          props, "vowel_list", props, "vowel_active_index", rows=6)
-        col = row.column()
-        col1 = col.column(align=True)
-        col1.operator(IMPLAB_OT_NewVowel.bl_idname, text="", icon="ADD")
-        col1.operator(IMPLAB_OT_DeleteVowel.bl_idname, text="", icon="REMOVE")
-        col2 = col.column(align=True)
-        col2.operator(IMPLAB_OT_MoveVowel.bl_idname,
-                      text="", icon="TRIA_UP").direction = "UP"
-        col2.operator(IMPLAB_OT_MoveVowel.bl_idname, text="",
-                      icon="TRIA_DOWN").direction = "DOWN"
+        uilist_draw(layout, props, "IMPLAB_UL_PhonemeList",
+                    "vowel_list", "vowel_active_index", 6)
 
 
 class IMPLAB_PT_consonants(Panel):
@@ -447,19 +539,64 @@ class IMPLAB_PT_consonants(Panel):
         props = context.active_object.data.implab_props
         addon_prefs = bpy.context.preferences.addons[__package__].preferences
 
-        row = layout.row(align=False)
-        row.template_list("IMPLAB_UL_PhonemeList", "",
-                          props, "consonants_list", props, "consonants_active_index", rows=6)
-        col = row.column()
-        col1 = col.column(align=True)
-        col1.operator(IMPLAB_OT_NewConsonants.bl_idname, text="", icon="ADD")
-        col1.operator(IMPLAB_OT_DeleteConsonants.bl_idname,
-                      text="", icon="REMOVE")
-        col2 = col.column(align=True)
-        col2.operator(IMPLAB_OT_MoveConsonants.bl_idname,
-                      text="", icon="TRIA_UP").direction = "UP"
-        col2.operator(IMPLAB_OT_MoveConsonants.bl_idname, text="",
-                      icon="TRIA_DOWN").direction = "DOWN"
+        uilist_draw(layout, props, "IMPLAB_UL_PhonemeList",
+                    "consonants_list", "consonants_active_index")
+
+
+class IMPLAB_PT_ImplabPanelMesh(Panel):
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_label = "Import Lab Shapekey"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_context = "data"
+
+    @classmethod
+    def poll(cls, context):
+        obj = context.active_object
+        if not context.active_object:
+            return False
+        return obj.type == 'MESH'
+
+    def draw(self, context):
+        layout = self.layout
+        addon_prefs = bpy.context.preferences.addons[__package__].preferences
+        props = context.active_object.data.implab_props
+
+        layout.label(text="発音モーション挿入")
+        layout.operator(IMPLAB_OT_INSERT.bl_idname).target = 'MESH'
+        layout.operator(IMPLAB_OT_SetPhonemeList.bl_idname)
+
+
+class IMPLAB_PT_vowelMesh(Panel):
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_label = "母音"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_context = "data"
+    bl_parent_id = "IMPLAB_PT_ImplabPanelMesh"
+
+    def draw(self, context):
+        layout = self.layout
+        props = context.active_object.data.implab_props
+
+        uilist_draw(layout, props, "IMPLAB_UL_PhonemeList",
+                    "vowel_list", "vowel_active_index", 6)
+
+
+class IMPLAB_PT_consonantsMesh(Panel):
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_label = "子音"
+    bl_options = {'DEFAULT_CLOSED'}
+    bl_context = "data"
+    bl_parent_id = "IMPLAB_PT_ImplabPanelMesh"
+
+    def draw(self, context):
+        layout = self.layout
+        props = context.active_object.data.implab_props
+
+        uilist_draw(layout, props, "IMPLAB_UL_PhonemeList",
+                    "consonants_list", "consonants_active_index")
 
 
 # Blenderに登録するクラス
@@ -467,6 +604,8 @@ classes = [
     IMPLAB_MT_AddonPreferences,
     ImplabActionPointer,
     ImplabPropertyGroup,
+    ImplabShapekeyPointer,
+    ImplabMeshPropertyGroup,
     IMPLAB_OT_INSERT,
     IMPLAB_OT_SET_CURRENT_FRAME,
     IMPLAB_OT_SetPhonemeList,
@@ -480,7 +619,10 @@ classes = [
     IMPLAB_UL_PhonemeList,
     IMPLAB_UL_PhonemeList2,
     IMPLAB_PT_vowel,
-    IMPLAB_PT_consonants
+    IMPLAB_PT_consonants,
+    IMPLAB_PT_ImplabPanelMesh,
+    IMPLAB_PT_vowelMesh,
+    IMPLAB_PT_consonantsMesh
 ]
 
 # アドオン有効化時の処理
@@ -491,6 +633,8 @@ def register():
         bpy.utils.register_class(c)
     bpy.types.Armature.implab_props = bpy.props.PointerProperty(
         type=ImplabPropertyGroup)
+    bpy.types.Mesh.implab_props = bpy.props.PointerProperty(
+        type=ImplabMeshPropertyGroup)
 
     print("アドオン\"Inport Lab\"が有効化されました。")
 
@@ -500,6 +644,7 @@ def unregister():
     for c in classes:
         bpy.utils.unregister_class(c)
     del bpy.types.Armature.implab_props
+    del bpy.types.Mesh.implab_props
     print("アドオン\"Inport Lab\"が無効化されました。")
 
 

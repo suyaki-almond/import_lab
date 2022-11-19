@@ -241,7 +241,7 @@ class IMPLAB_OT_NewVowel(Operator):
 
     @classmethod
     def poll(cls, context):
-        return context.active_object.data.implab_props.vowel_list
+        return hasattr(context.active_object.data.implab_props.vowel_list, 'add')
 
     def execute(self, context):
         props = context.active_object.data.implab_props

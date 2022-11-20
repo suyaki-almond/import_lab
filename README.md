@@ -8,6 +8,9 @@ Copyright (c) 2022 suyaki-almond
 
 AI音声生成ソフトなどで出力できる音素情報ファイル(.lab)と発音ポーズ、シェイプキーからリップモーションを作成するBlenderアドオンです。
 
+## 動作環境
+Blender 3.3
+
 ## インストール
 1. releaseにある "import_lab.zip" をダウンロードする。
 1. Blender > 編集 > プリファレンス > アドオン > インストールで先ほどダウンロードした "import_lab.zip" を指定し「アドオンをインストール」を押す。

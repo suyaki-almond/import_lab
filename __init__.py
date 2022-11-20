@@ -11,7 +11,7 @@ bl_info = {
     "name": "Import Lipsync Label(.lab)",
     "description": "Import label data obtained from \"VOICEVOX\" and other sources to construct animations.",
     "author": "suyaki almond",
-    "version": (0, 0, 1),
+    "version": (0, 0, 2),
     "blender": (3, 3, 0),
     "location": "View3D > Add > Mesh",
     "warning": "開発中",

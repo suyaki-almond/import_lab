@@ -27,6 +27,8 @@ Blender 3.3
 
 VRoidモデルを使った使用例（音が出ます）
 
+VOICEVOX:四国めたん
+
 https://user-images.githubusercontent.com/117264996/202858170-cca419a8-75a5-44fd-be89-c440b32ae374.mp4
 
 ## 仕様

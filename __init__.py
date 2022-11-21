@@ -5,6 +5,7 @@ from bpy.types import Operator, AddonPreferences, Panel, UIList, PropertyGroup, 
 from bpy.props import *
 import bpy
 from copy import copy
+import re
 
 
 bl_info = {
@@ -93,6 +94,8 @@ class IMPLAB_OT_INSERT(Operator, ImportHelper):
     filter_glob: StringProperty(
         default="*.lab", options={'HIDDEN'}, maxlen=255)
     target: StringProperty(default="", options={'HIDDEN'})
+    overwrite: BoolProperty(
+        name="上書き", description="選択したファイルと同じ名前のアクションとストリップを削除してから生成、挿入します", default=True)
     use_scale: BoolProperty(
         name="Use Scale", description="固定フレームレートのアクションを生成し、再生スケールで調整する")
 
@@ -107,6 +110,8 @@ class IMPLAB_OT_INSERT(Operator, ImportHelper):
         sentence = lab.lab_words(self.filepath).split()
 
         covering, phoneme_dict = self.phoneme_check(context)
+        if self.overwrite:
+            self.overwrite_preprocess(context)
         if not covering:
             return {"FINISHED"}
         match self.target:
@@ -149,6 +154,21 @@ class IMPLAB_OT_INSERT(Operator, ImportHelper):
         if len(clist) > 0 and None not in [v.pose for v in clist]:
             ret += '_CONSONANTS'
         return ret, phoneme_dict
+
+    def overwrite_preprocess(self, context: Context):
+        if self.target == 'ARMATURE':
+            data = context.active_object.animation_data
+        elif self.target == 'MESH':
+           data = context.active_object.data.shape_keys.animation_data
+        if data:
+            name = bpy.path.display_name_from_filepath(self.filepath)
+            if (track := data.nla_tracks.find("LAB Speech")) == -1:
+                return
+            strips = data.nla_tracks[track].strips
+            for strip in [s for s in strips if re.fullmatch(f"{name}(\.[0-9]+)?$", s.name)]:
+                action = strip.action
+                strips.remove(strip)
+                bpy.data.actions.remove(action)
 
     def generate_rig_action(self, context: Context, covering: str, sentence: list[lab.lab_words], phoneme_dict: dict[str, Action]):
         props = context.active_object.data.implab_props

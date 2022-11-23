@@ -9,7 +9,7 @@ import re
 
 
 bl_info = {
-    "name": "Import Lipsync Label(.lab)",
+    "name": "Import Lab",
     "description": "Import label data obtained from \"VOICEVOX\" and other sources to construct animations.",
     "author": "suyaki almond",
     "version": (0, 0, 2),

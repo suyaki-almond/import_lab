@@ -14,7 +14,7 @@ bl_info = {
     "author": "suyaki almond",
     "version": (0, 0, 2),
     "blender": (3, 3, 0),
-    "location": "View3D > Add > Mesh",
+    "location": "Properties > Object Data Property > Import Lab *",
     "warning": "開発中",
     "doc_url": "",
     "tracker_url": "",

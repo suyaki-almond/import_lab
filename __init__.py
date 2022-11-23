@@ -38,7 +38,7 @@ class IMPLAB_MT_AddonPreferences(AddonPreferences):
 
 
 class ImplabActionPointer(PropertyGroup):
-    pho: StringProperty()
+    viseme: StringProperty()
     pose: PointerProperty(type=Action)
 
 
@@ -62,7 +62,7 @@ def getShapeKeyList(self, context: Context):
 
 
 class ImplabShapekeyPointer(PropertyGroup):
-    pho: StringProperty()
+    viseme: StringProperty()
     pose: EnumProperty(items=getShapeKeyList)
 
 
@@ -134,15 +134,15 @@ class IMPLAB_OT_INSERT(Operator, ImportHelper):
 
         # 音素スロットが一意か確認
         slots = [p for p in vlist] + [p for p in clist]
-        unique = [v for i, v in enumerate(slots) if v.pho in [
-            l.pho for l in slots[i+1:]]]
+        unique = [v for i, v in enumerate(slots) if v.viseme in [
+            l.viseme for l in slots[i+1:]]]
         if unique:
             for u in unique:
-                self.report({'ERROR'}, f"一意ではない音素: {u.pho}")
+                self.report({'ERROR'}, f"一意ではない音素: {u.viseme}")
             return None, None
 
         # 音素辞書作成
-        phoneme_dict = {v.pho: v.pose for v in slots}
+        phoneme_dict = {v.viseme: v.pose for v in slots}
 
         if phoneme_dict['a'] != None and phoneme_dict['N'] != None:
             ret = 'OPEN_SHUT'
@@ -178,8 +178,8 @@ class IMPLAB_OT_INSERT(Operator, ImportHelper):
         a = phoneme_dict['a']
         N = phoneme_dict['N']
 
-        vlist = {v.pho: v.pose if v.pose else a for v in props.vowel_list}
-        clist = {c.pho: c.pose if c.pose else N for c in props.consonants_list}
+        vlist = {v.viseme: v.pose if v.pose else a for v in props.vowel_list}
+        clist = {c.viseme: c.pose if c.pose else N for c in props.consonants_list}
         src_list: dict[str, Action] = vlist | clist
         actionname = bpy.path.display_name_from_filepath(self.filepath)
 
@@ -227,9 +227,9 @@ class IMPLAB_OT_INSERT(Operator, ImportHelper):
         N = phoneme_dict['N']
 
         keys = obj.data.shape_keys.key_blocks
-        vlist = {v.pho: keys[v.pose]
+        vlist = {v.viseme: keys[v.pose]
                  if v.pose else a for v in props.vowel_list}
-        clist = {c.pho: keys[c.pose]
+        clist = {c.viseme: keys[c.pose]
                  if c.pose else N for c in props.consonants_list}
         src_list: dict[str, ShapeKey] = vlist | clist
         actionname = bpy.path.display_name_from_filepath(self.filepath)
@@ -322,8 +322,8 @@ class IMPLAB_OT_SET_CURRENT_FRAME(Operator):
 
 class IMPLAB_OT_SetPhonemeList(Operator):
     bl_idname = "importlab.set_phoneme_list"
-    bl_label = "音素リストを追加（日本語）"
-    bl_description = "日本語の音素リストを追加する"
+    bl_label = "口形素リストを追加（日本語）"
+    bl_description = "日本語の口形素リストを追加する"
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
@@ -331,14 +331,14 @@ class IMPLAB_OT_SetPhonemeList(Operator):
         vl = lab.phoneme.vowel_literals
         cl = lab.phoneme.consonants_literals
         for p in range(len(vl)):
-            if vl[p] not in [a.pho for a in props.vowel_list]:
+            if vl[p] not in [a.viseme for a in props.vowel_list]:
                 #props.vowel_list[vl[p]] = ImplabActionPointer(vl[p])
                 a = props.vowel_list.add()
-                a.pho = vl[p]
+                a.viseme = vl[p]
         for p in range(len(cl)):
-            if cl[p] not in [a.pho for a in props.consonants_list]:
+            if cl[p] not in [a.viseme for a in props.consonants_list]:
                 a = props.consonants_list.add()
-                a.pho = cl[p]
+                a.viseme = cl[p]
         return {"FINISHED"}
 
 
@@ -505,13 +505,13 @@ class IMPLAB_UL_PhonemeList(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             if item:
-                layout.prop(item, "pho", text="",
+                layout.prop(item, "viseme", text="",
                             emboss=False, icon_value=icon)
                 layout.prop(item, "pose", text="")
             else:
                 layout.label(text="", translate=False, icon_value=icon)
             #row = layout.split(align=True,factor=0.1)
-            #row.prop(item, "pho", text="", emboss=False)
+            #row.prop(item, "viseme", text="", emboss=False)
             #row.prop(item, "pose", text="")
         elif self.layout_type == 'GRID':
             layout.alignment = 'CENTER'
@@ -522,7 +522,7 @@ class IMPLAB_UL_PhonemeList2(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
             row = layout.split(align=True, factor=0.1)
-            row.prop(item, "pho", text="", emboss=False)
+            row.prop(item, "viseme", text="", emboss=False)
             row.prop(item, "pose", text="")
         elif self.layout_type == 'GRID':
             layout.alignment = 'CENTER'

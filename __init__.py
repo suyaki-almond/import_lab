@@ -16,8 +16,8 @@ bl_info = {
     "blender": (3, 3, 0),
     "location": "Properties > Object Data Property > Import Lab *",
     "warning": "開発中",
-    "doc_url": "",
-    "tracker_url": "",
+    "doc_url": "https://github.com/suyaki-almond/import_lab",
+    "tracker_url": "https://github.com/suyaki-almond/import_lab/issues",
     "support": "TESTING",
     "category": "Animation"
 }

@@ -12,7 +12,7 @@ bl_info = {
     "name": "Import Lab",
     "description": "Import label data obtained from \"VOICEVOX\" and other sources to construct animations.",
     "author": "suyaki almond",
-    "version": (0, 0, 2),
+    "version": (0, 0, 3),
     "blender": (3, 3, 0),
     "location": "Properties > Object Data Property > Import Lab *",
     "warning": "開発中",

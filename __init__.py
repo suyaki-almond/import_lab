@@ -159,7 +159,7 @@ class IMPLAB_OT_INSERT(Operator, ImportHelper):
         if self.target == 'ARMATURE':
             data = context.active_object.animation_data
         elif self.target == 'MESH':
-           data = context.active_object.data.shape_keys.animation_data
+            data = context.active_object.data.shape_keys.animation_data
         if data:
             name = bpy.path.display_name_from_filepath(self.filepath)
             if (track := data.nla_tracks.find("LAB Speech")) == -1:
@@ -486,21 +486,6 @@ class IMPLAB_PT_ImplabPanel(Panel):
         layout.operator(IMPLAB_OT_SetPhonemeList.bl_idname)
 
 
-def uilist_draw(layout: 'bpy.types.UILayout', props, listtype_name, propname, active_propname, rows=5):
-    row = layout.row(align=False)
-    row.template_list(listtype_name, "",
-                      props, propname, props, active_propname, rows=rows)
-    col = row.column()
-    col1 = col.column(align=True)
-    col1.operator(IMPLAB_OT_NewVowel.bl_idname, text="", icon="ADD")
-    col1.operator(IMPLAB_OT_DeleteVowel.bl_idname, text="", icon="REMOVE")
-    col2 = col.column(align=True)
-    col2.operator(IMPLAB_OT_MoveVowel.bl_idname,
-                  text="", icon="TRIA_UP").direction = "UP"
-    col2.operator(IMPLAB_OT_MoveVowel.bl_idname, text="",
-                  icon="TRIA_DOWN").direction = "DOWN"
-
-
 class IMPLAB_UL_PhonemeList(UIList):
     def draw_item(self, context, layout, data, item, icon, active_data, active_propname):
         if self.layout_type in {'DEFAULT', 'COMPACT'}:
@@ -542,8 +527,18 @@ class IMPLAB_PT_vowel(Panel):
         props = context.active_object.data.implab_props
         addon_prefs = bpy.context.preferences.addons[__package__].preferences
 
-        uilist_draw(layout, props, "IMPLAB_UL_PhonemeList",
-                    "vowel_list", "vowel_active_index", 6)
+        row = layout.row(align=False)
+        row.template_list("IMPLAB_UL_PhonemeList", "",
+                          props, "vowel_list", props, "vowel_active_index", rows=6)
+        col = row.column()
+        col1 = col.column(align=True)
+        col1.operator(IMPLAB_OT_NewVowel.bl_idname, text="", icon="ADD")
+        col1.operator(IMPLAB_OT_DeleteVowel.bl_idname, text="", icon="REMOVE")
+        col2 = col.column(align=True)
+        col2.operator(IMPLAB_OT_MoveVowel.bl_idname,
+                      text="", icon="TRIA_UP").direction = "UP"
+        col2.operator(IMPLAB_OT_MoveVowel.bl_idname, text="",
+                      icon="TRIA_DOWN").direction = "DOWN"
 
 
 class IMPLAB_PT_consonants(Panel):
@@ -559,8 +554,19 @@ class IMPLAB_PT_consonants(Panel):
         props = context.active_object.data.implab_props
         addon_prefs = bpy.context.preferences.addons[__package__].preferences
 
-        uilist_draw(layout, props, "IMPLAB_UL_PhonemeList",
-                    "consonants_list", "consonants_active_index")
+        row = layout.row(align=False)
+        row.template_list("IMPLAB_UL_PhonemeList", "",
+                          props, "consonants_list", props, "consonants_active_index")
+        col = row.column()
+        col1 = col.column(align=True)
+        col1.operator(IMPLAB_OT_NewConsonants.bl_idname, text="", icon="ADD")
+        col1.operator(IMPLAB_OT_DeleteConsonants.bl_idname,
+                      text="", icon="REMOVE")
+        col2 = col.column(align=True)
+        col2.operator(IMPLAB_OT_MoveConsonants.bl_idname,
+                      text="", icon="TRIA_UP").direction = "UP"
+        col2.operator(IMPLAB_OT_MoveConsonants.bl_idname, text="",
+                      icon="TRIA_DOWN").direction = "DOWN"
 
 
 class IMPLAB_PT_ImplabPanelMesh(Panel):
@@ -599,8 +605,18 @@ class IMPLAB_PT_vowelMesh(Panel):
         layout = self.layout
         props = context.active_object.data.implab_props
 
-        uilist_draw(layout, props, "IMPLAB_UL_PhonemeList",
-                    "vowel_list", "vowel_active_index", 6)
+        row = layout.row(align=False)
+        row.template_list("IMPLAB_UL_PhonemeList", "",
+                          props, "vowel_list", props, "vowel_active_index", rows=6)
+        col = row.column()
+        col1 = col.column(align=True)
+        col1.operator(IMPLAB_OT_NewVowel.bl_idname, text="", icon="ADD")
+        col1.operator(IMPLAB_OT_DeleteVowel.bl_idname, text="", icon="REMOVE")
+        col2 = col.column(align=True)
+        col2.operator(IMPLAB_OT_MoveVowel.bl_idname,
+                      text="", icon="TRIA_UP").direction = "UP"
+        col2.operator(IMPLAB_OT_MoveVowel.bl_idname, text="",
+                      icon="TRIA_DOWN").direction = "DOWN"
 
 
 class IMPLAB_PT_consonantsMesh(Panel):
@@ -615,8 +631,19 @@ class IMPLAB_PT_consonantsMesh(Panel):
         layout = self.layout
         props = context.active_object.data.implab_props
 
-        uilist_draw(layout, props, "IMPLAB_UL_PhonemeList",
-                    "consonants_list", "consonants_active_index")
+        row = layout.row(align=False)
+        row.template_list("IMPLAB_UL_PhonemeList", "",
+                          props, "consonants_list", props, "consonants_active_index")
+        col = row.column()
+        col1 = col.column(align=True)
+        col1.operator(IMPLAB_OT_NewConsonants.bl_idname, text="", icon="ADD")
+        col1.operator(IMPLAB_OT_DeleteConsonants.bl_idname,
+                      text="", icon="REMOVE")
+        col2 = col.column(align=True)
+        col2.operator(IMPLAB_OT_MoveConsonants.bl_idname,
+                      text="", icon="TRIA_UP").direction = "UP"
+        col2.operator(IMPLAB_OT_MoveConsonants.bl_idname, text="",
+                      icon="TRIA_DOWN").direction = "DOWN"
 
 
 # Blenderに登録するクラス

@@ -38,8 +38,8 @@ class IMPLAB_MT_AddonPreferences(AddonPreferences):
 
 
 class ImplabActionPointer(PropertyGroup):
-    viseme: StringProperty()
-    pose: PointerProperty(type=Action)
+    viseme: StringProperty(override={"LIBRARY_OVERRIDABLE"})
+    pose: PointerProperty(type=Action, override={"LIBRARY_OVERRIDABLE"})
 
 
 class ImplabPropertyGroup(PropertyGroup):
@@ -47,23 +47,27 @@ class ImplabPropertyGroup(PropertyGroup):
         name="挿入フレーム",
         description="発音モーションを挿入するフレーム",
         default=1,
+        override={"LIBRARY_OVERRIDABLE"}
     )
-    vowel_list: CollectionProperty(type=ImplabActionPointer)
-    consonants_list: CollectionProperty(type=ImplabActionPointer)
-    vowel_active_index: IntProperty("Active Index")
-    consonants_active_index: IntProperty("Active Index")
+    vowel_list: CollectionProperty(
+        type=ImplabActionPointer, override={"LIBRARY_OVERRIDABLE", "USE_INSERTION"})
+    consonants_list: CollectionProperty(
+        type=ImplabActionPointer, override={"LIBRARY_OVERRIDABLE", "USE_INSERTION"})
+    vowel_active_index: IntProperty(
+        "Active Index", override={"LIBRARY_OVERRIDABLE"})
+    consonants_active_index: IntProperty(
+        "Active Index", override={"LIBRARY_OVERRIDABLE"})
 
 
 def getShapeKeyList(self, context: Context):
-    obj = context.active_object
+        obj = context.active_object
     if obj.type != 'MESH':
         return []
     return [(item.name, item.name, "") for item in obj.data.shape_keys.key_blocks]
 
 
-class ImplabShapekeyPointer(PropertyGroup):
-    viseme: StringProperty()
-    pose: EnumProperty(items=getShapeKeyList)
+    viseme: StringProperty(override={"LIBRARY_OVERRIDABLE"})
+    pose: EnumProperty(items=getShapeKeyList, override={"LIBRARY_OVERRIDABLE"})
 
 
 class ImplabMeshPropertyGroup(PropertyGroup):
@@ -71,11 +75,16 @@ class ImplabMeshPropertyGroup(PropertyGroup):
         name="挿入フレーム",
         description="発音モーションを挿入するフレーム",
         default=1,
+        override={"LIBRARY_OVERRIDABLE"}
     )
-    vowel_list: CollectionProperty(type=ImplabShapekeyPointer)
-    consonants_list: CollectionProperty(type=ImplabShapekeyPointer)
-    vowel_active_index: IntProperty("Active Index")
-    consonants_active_index: IntProperty("Active Index")
+    vowel_list: CollectionProperty(
+        type=ImplabShapekeyPointer, override={"LIBRARY_OVERRIDABLE", "USE_INSERTION"})
+    consonants_list: CollectionProperty(
+        type=ImplabShapekeyPointer, override={"LIBRARY_OVERRIDABLE", "USE_INSERTION"})
+    vowel_active_index: IntProperty(
+        "Active Index", override={"LIBRARY_OVERRIDABLE"})
+    consonants_active_index: IntProperty(
+        "Active Index", override={"LIBRARY_OVERRIDABLE"})
 
 
 class IMPLAB_OT_INSERT(Operator, ImportHelper):
@@ -679,9 +688,9 @@ def register():
     for c in classes:
         bpy.utils.register_class(c)
     bpy.types.Armature.implab_props = bpy.props.PointerProperty(
-        type=ImplabPropertyGroup)
+        type=ImplabPropertyGroup, override={"LIBRARY_OVERRIDABLE"})
     bpy.types.Mesh.implab_props = bpy.props.PointerProperty(
-        type=ImplabMeshPropertyGroup)
+        type=ImplabMeshPropertyGroup, override={"LIBRARY_OVERRIDABLE"})
 
     print("アドオン\"Inport Lab\"が有効化されました。")
 

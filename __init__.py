@@ -59,12 +59,18 @@ class ImplabPropertyGroup(PropertyGroup):
         "Active Index", override={"LIBRARY_OVERRIDABLE"})
 
 
-def getShapeKeyList(self, context: Context):
-        obj = context.active_object
-    if obj.type != 'MESH':
-        return []
-    return [(item.name, item.name, "") for item in obj.data.shape_keys.key_blocks]
+class ImplabShapekeyPointer(PropertyGroup):
+    shapekey_list = []
 
+    def getShapeKeyList(self, context):
+        obj = context.active_object
+        items = []
+        if obj.type == 'MESH':
+            for i, item in enumerate(obj.data.shape_keys.key_blocks):
+                items.append(
+                    (item.name, item.name, "シェイプキー", "SHAPEKEY_DATA", i))
+        ImplabShapekeyPointer.shapekey_list = items
+        return items
 
     viseme: StringProperty(override={"LIBRARY_OVERRIDABLE"})
     pose: EnumProperty(items=getShapeKeyList, override={"LIBRARY_OVERRIDABLE"})

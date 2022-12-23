@@ -56,10 +56,10 @@ class lab_words:
         self.phoneme_list: list[phoneme] = []
 
         if filepath != '':
-            with open(filepath, encoding='utf-8') as f:  # BOM Check
-                enc = 'utf-8-sig' if f.read()[0] == '\ufeff' else 'utf-8'
+            with open(file=filepath, mode='r', encoding='utf-8') as f:
+                if f.read(1) != '\ufeff':  # BOM Check
+                    f.seek(0)
 
-            with open(file=filepath, mode='r', encoding=enc) as f:
                 for line in f:
                     s = line.split()
                     self.phoneme_list.append(
